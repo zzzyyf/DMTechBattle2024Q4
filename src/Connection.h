@@ -43,6 +43,7 @@ public:
         try {
             auto resolve_result = resolver.resolve(host, port);
             asio::connect(mSocket, resolve_result);
+            // mSocket.set_option(tcp::no_delay(true));
         }
         catch (std::exception &e)
         {

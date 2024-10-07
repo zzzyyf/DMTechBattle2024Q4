@@ -15,3 +15,20 @@
 1. 先用asio tcp
 2. 大头肯定在网络上，但是限制了请求不能攒批
 3. 那先做一个最基础的版本，再看一下有哪些可以优化的地方
+
+- 异步accept，同步传输数据
+- 8线程 1000万请求 25秒左右，cpu利用率不到400%，感觉有瓶颈，下面是vtune profile的结果
+
+```log
+Function                              Module           CPU Time  % of CPU Time(%)
+------------------------------------  ---------------  --------  ----------------
+__libc_send                           libc.so.6        101.049s             89.6%
+rand                                  libc.so.6          6.153s              5.5%
+recv                                  benchmark.exe      2.925s              2.6%
+OS_BARESYSCALL_DoCallAsmIntel64Linux  libc-dynamic.so    0.732s              0.6%
+asio::detail::socket_ops::send1       benchmark.exe      0.630s              0.6%
+[Others]                              N/A                1.300s              1.2%
+```
+
+- 尝试设置了tcp_nodelay，但反而更慢了
+    - 因为网络开销是大头，可能取消了nagle算法的buffering之后反而增加了底层I/O开销

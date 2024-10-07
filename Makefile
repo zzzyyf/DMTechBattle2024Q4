@@ -1,7 +1,7 @@
 CXX=g++
 CPPFLAGS=-Wall -g3 -std=c++2a #-fsanitize=address -fno-omit-frame-pointer
 
-# DBGFLAGS=-O3 -DNDEBUG
+DBGFLAGS=-O3 -DNDEBUG
 
 INC=-Ithird_party -Ithird_party/asio
 LIBS_PRE=#-lasan

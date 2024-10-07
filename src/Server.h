@@ -90,8 +90,10 @@ public:
             return;
         }
 
+        // connection->getSocket().set_option(tcp::no_delay(true));
+
         // mConnections.emplace_back(connection);
-        mThreads.emplace_back([&](){
+        mThreads.emplace_back([&, connection](){
             char buf[1 + request_max_size];
             while (!mStopped.load(std::memory_order_acquire))
             {
@@ -106,16 +108,25 @@ public:
         mAcceptor.async_accept(new_conn->getSocket(), std::bind(&Server::handleAccept, this, new_conn, asio::placeholders::error));
     }
 
-    static bool process(ConnectionPtr &connection, char *recvbuf, const uint32_t len)
+    static bool process(ConnectionPtr connection, char *recvbuf, const uint32_t len)
     {
+        // int i = 1;
+        // ::setsockopt(connection->getSocket().native_handle(), IPPROTO_TCP, TCP_QUICKACK, &i, sizeof(i));
+
         int8_t req_len = connection->recvReq(recvbuf, len);
         if ((uint32_t)req_len < request_min_size || (uint32_t)req_len > request_max_size)
         {
             return false;
         }
 
+        // std::cout << "server received req '" << std::string_view(recvbuf, req_len) << "', len: " << req_len << std::endl;
+
+        // ::setsockopt(connection->getSocket().native_handle(), IPPROTO_TCP, TCP_QUICKACK, &i, sizeof(i));
+
         uint32_t crc = ::crc32((const unsigned char *)recvbuf, req_len);
         connection->send((const char*)&crc, sizeof(crc));
+
+        // std::cout << "server sent crc32: " << crc << std::endl;
 
         return true;
     }

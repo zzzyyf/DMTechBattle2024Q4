@@ -37,16 +37,24 @@ private:
     bool processOnce()
     {
         uint32_t req_len = generateRequest();
+
+        // int i = 1;
+        // ::setsockopt(mConnection->getSocket().native_handle(), IPPROTO_TCP, TCP_QUICKACK, &i, sizeof(i));
         bool rslt = mConnection->send(mRequestBuffer, req_len + 1);
         if (!rslt) {
             return false;
         }
 
+        // std::cout << "client sent req '" << std::string_view(mRequestBuffer + 1, req_len) << "', len: " << req_len << std::endl;
+
         uint32_t crc32;
+        // ::setsockopt(mConnection->getSocket().native_handle(), IPPROTO_TCP, TCP_QUICKACK, &i, sizeof(i));
         size_t nread = mConnection->recv((char *)&crc32, sizeof(crc32));
         if (nread != sizeof(crc32)) {
             return false;
         }
+
+        // std::cout << "client recv crc32: " << crc32 << std::endl;
 
         return true;
     }

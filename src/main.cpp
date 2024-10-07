@@ -4,6 +4,8 @@
 #include "argparse/argparse.hpp"
 #include "asio/io_context.hpp"
 
+#include <chrono>
+
 using namespace dm;
 
 std::string host;
@@ -69,6 +71,10 @@ int main(int argc, char *argv[])
 
 bool startClient(asio::io_context &context)
 {
+    std::srand(std::time(nullptr));
+
+    auto t1 = std::chrono::steady_clock::now();
+
     int avg_count = total_request / parallel;
     int remainder = total_request % parallel;
 
@@ -107,6 +113,10 @@ bool startClient(asio::io_context &context)
     {
         thread.join();
     }
+
+    auto t2 = std::chrono::steady_clock::now();
+
+    std::cout << "finish " << total_request << " requests with " << parallel << " threads cost " << (t2 - t1).count() / 1000000. << " ms." << std::endl;
 
     return true;
 }
