@@ -2,6 +2,7 @@ CXX=g++
 CPPFLAGS=-Wall -g3 -std=c++2a #-fsanitize=address -fno-omit-frame-pointer
 
 DBGFLAGS=-O3 -DNDEBUG
+# LOGFLAGS=-DENABLE_LOG
 
 INC=-Ithird_party -Ithird_party/asio
 LIBS_PRE=#-lasan
@@ -23,7 +24,7 @@ $(TARGET) : $(OBJS)
 
 $(BUILDDIR)/%.o : $(SRCDIR)/%.cpp
 	@mkdir -p $(BUILDDIR)
-	$(CXX) $(CPPFLAGS) $(DBGFLAGS) $(INC) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(DBGFLAGS) $(LOGFLAGS) $(INC) -c $< -o $@
 
 .PHONY: clean
 clean :

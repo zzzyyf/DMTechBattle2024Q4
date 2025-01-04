@@ -102,10 +102,17 @@ public:
             std::cerr << error.message() << std::endl;
             return 0;
         }
+        if (nread != req_len)
+        {
+            std::cerr << "req_header is " << int(req_len) << ", recv " << nread << std::endl;
+            return 0;
+        }
         return nread;
     }
 };
 
 using ConnectionPtr = Ptr<Connection>;
+
+using Header = uint16_t;
 
 }   // end of namespace dm

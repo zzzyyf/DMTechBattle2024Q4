@@ -29,6 +29,8 @@ private:
     // std::vector<ConnectionPtr>  mConnections;
     std::vector<std::thread>    mThreads;
 
+    std::vector<uint32_t>   mResponses;
+
     std::atomic<bool>   mStopped = false;
 
 public:
@@ -39,7 +41,7 @@ public:
     mPort(port),
     mAcceptor(context)
     {
-
+        mResponses.resize(20000);
     }
 
     ~Server()
@@ -97,7 +99,8 @@ public:
             char buf[1 + request_max_size];
             while (!mStopped.load(std::memory_order_acquire))
             {
-                bool rslt = process(connection, buf, 1 + request_max_size);
+                bool rslt = processV2(connection, buf, 1 + request_max_size);
+                // bool rslt = process(connection, buf, 1 + request_max_size);
                 if (!rslt) {
                     break;
                 }
@@ -127,6 +130,41 @@ public:
         connection->send((const char*)&crc, sizeof(crc));
 
         // std::cout << "server sent crc32: " << crc << std::endl;
+
+        return true;
+    }
+
+    bool processV2(ConnectionPtr connection, char *recvbuf, const uint32_t len)
+    {
+        // int i = 1;
+        // ::setsockopt(connection->getSocket().native_handle(), IPPROTO_TCP, TCP_QUICKACK, &i, sizeof(i));
+        Header batch_size;
+        auto nread = connection->recv((char *)&batch_size, sizeof(Header));
+        assert(nread == sizeof(Header));
+
+        uint32_t *resp_pos = mResponses.data();
+        for (Header i = 0; i < batch_size; i++)
+        {
+            int8_t req_len = connection->recvReq(recvbuf, len);
+            if ((uint32_t)req_len < request_min_size || (uint32_t)req_len > request_max_size)
+            {
+                return false;
+            }
+
+#if defined(ENABLE_LOG)
+            std::cout << "server received req " << (int)i << ": '" << std::string_view(recvbuf, req_len) << "', len: " << (int)req_len << std::endl;
+#endif
+
+            // ::setsockopt(connection->getSocket().native_handle(), IPPROTO_TCP, TCP_QUICKACK, &i, sizeof(i));
+
+            *resp_pos = ::crc32((const unsigned char *)recvbuf, req_len);
+            ++resp_pos;
+        }
+        connection->send((const char*)mResponses.data(), batch_size * sizeof(uint32_t));
+
+#if defined(ENABLE_LOG)
+        std::cout << "server sent responses: " << (int)batch_size << std::endl;
+#endif
 
         return true;
     }

@@ -1,3 +1,4 @@
+#include "Batcher.h"
 #include "Client.h"
 #include "Server.h"
 
@@ -5,6 +6,7 @@
 #include "asio/io_context.hpp"
 
 #include <chrono>
+#include <cstdint>
 
 using namespace dm;
 
@@ -18,6 +20,7 @@ std::vector<std::thread> threads;
 const uint64_t total_request = 10'000'000;
 
 bool startClient(asio::io_context &context);
+bool startClientV2(asio::io_context &context);
 bool startServer(asio::io_context &context);
 
 int main(int argc, char *argv[])
@@ -58,7 +61,8 @@ int main(int argc, char *argv[])
 
     asio::io_context io_context;
 
-    bool rslt = is_client ? startClient(io_context) : startServer(io_context);
+    // bool rslt = is_client ? startClient(io_context) : startServer(io_context);
+    bool rslt = is_client ? startClientV2(io_context) : startServer(io_context);
     if (!rslt)
     {
         std::cerr << "failed to start!" << std::endl;
@@ -66,6 +70,67 @@ int main(int argc, char *argv[])
     }
 
     return 0;
+}
+
+bool startClientV2(asio::io_context &context)
+{
+    std::srand(std::time(nullptr));
+
+    try {
+        context.run();
+    }
+    catch (std::exception &e)
+    {
+        std::cerr << e.what() << std::endl;
+        exit(1);
+    }
+
+    uint32_t n_conn = 4;
+    std::vector<Batcher *> batchers;
+    std::vector<std::thread> threads;
+
+    for (uint32_t i = 0; i < n_conn; i++)
+    {
+        Batcher *batcher = new Batcher(parallel / n_conn);
+        if (!batcher->init())
+            return false;
+
+        if (!batcher->connect(context, host, port))
+        {
+            return false;
+        }
+
+        batchers.emplace_back(batcher);
+    }
+
+    std::cout << "client start sending " << total_request << " requests, parallel=" << parallel << std::endl;
+    auto t1 = std::chrono::steady_clock::now();
+
+    std::atomic<bool> status = true;
+    for (uint32_t i = 0; i < n_conn; i++)
+    {
+        threads.emplace_back([&, i](){
+            bool rslt = batchers[i]->process(total_request / n_conn);
+            if (!rslt) {
+                status = false;
+                return;
+            }
+
+            batchers[i]->join();
+        });
+    }
+
+    for (uint32_t i = 0; i < n_conn; i++) {
+        threads[i].join();
+    }
+    if (!status) {
+        return false;
+    }
+
+    auto t2 = std::chrono::steady_clock::now();
+    std::cout << "finish " << total_request << " requests with " << parallel << " threads cost " << (t2 - t1).count() / 1000000. << " ms." << std::endl;
+
+    return true;
 }
 
 
