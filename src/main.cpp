@@ -13,6 +13,7 @@ using namespace dm;
 std::string host;
 std::string port;
 int parallel;
+int n_conn;
 bool is_client;
 
 std::vector<std::thread> threads;
@@ -38,7 +39,12 @@ int main(int argc, char *argv[])
     program.add_argument("--parallel")
         .help("client parallelism")
         .scan<'i', int>()
-        .default_value(8);
+        .default_value(512);
+
+    program.add_argument("-c, --connection")
+        .help("number of client connections")
+        .scan<'i', int>()
+        .default_value(32);
 
     program.add_argument("--client")
         .help("run as client instead of server")
@@ -57,6 +63,7 @@ int main(int argc, char *argv[])
     host = program.get("-h");
     port = program.get("-p");
     parallel = program.get<int>("--parallel");
+    n_conn = program.get<int>("-c");
     is_client = program.get<bool>("--client");
 
     asio::io_context io_context;
@@ -85,11 +92,10 @@ bool startClientV2(asio::io_context &context)
         exit(1);
     }
 
-    uint32_t n_conn = 4;
     std::vector<Batcher *> batchers;
     std::vector<std::thread> threads;
 
-    for (uint32_t i = 0; i < n_conn; i++)
+    for (int i = 0; i < n_conn; i++)
     {
         Batcher *batcher = new Batcher(parallel / n_conn);
         if (!batcher->init())
@@ -107,10 +113,15 @@ bool startClientV2(asio::io_context &context)
     auto t1 = std::chrono::steady_clock::now();
 
     std::atomic<bool> status = true;
-    for (uint32_t i = 0; i < n_conn; i++)
+    uint32_t remainder = total_request % n_conn;
+    for (int i = 0; i < n_conn; i++)
     {
         threads.emplace_back([&, i](){
-            bool rslt = batchers[i]->process(total_request / n_conn);
+            uint32_t count = total_request / n_conn;
+            if (i == 0) {
+                count += remainder;
+            }
+            bool rslt = batchers[i]->process(count);
             if (!rslt) {
                 status = false;
                 return;
@@ -120,7 +131,7 @@ bool startClientV2(asio::io_context &context)
         });
     }
 
-    for (uint32_t i = 0; i < n_conn; i++) {
+    for (int i = 0; i < n_conn; i++) {
         threads[i].join();
     }
     if (!status) {

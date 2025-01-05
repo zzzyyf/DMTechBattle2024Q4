@@ -4,7 +4,6 @@
 
 #include <atomic>
 #include <cassert>
-#include <cstdint>
 #include <iostream>
 #include "semaphore.h"
 
@@ -27,6 +26,7 @@ private:
     Barrier    *mReadyBarrier = nullptr;
 
     std::string mAlphabets;
+    RNG         mRandom;
 
 private:
     // RequestGenerator(std::atomic<bool> *stopped)
@@ -165,12 +165,12 @@ private:
         // 0-9a-zA-Z has 62 characters.
         // 62^5 < 64^5 = 2^30, which is in the range of int32_t,
         // so we can use 1 rand() call to generate up to 5 characters at once.
-        assert(size <= 5);
+        assert(size <= 10);
 
-        uint32_t result = rand();
+        uint64_t result = mRandom.rand();
         for (; size > 0; --size)
         {
-            uint32_t bits = result & 0x0000003F;
+            uint64_t bits = result & 0x0000003F;
             *pos = mAlphabets[bits];
 
             result = result >> 6;

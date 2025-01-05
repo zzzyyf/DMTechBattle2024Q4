@@ -41,6 +41,8 @@ private:
 
     ConnectionPtr   mConnection = nullptr;
 
+    RNG             mRandom;
+
 public:
     Batcher(uint32_t parallel)
     :
@@ -86,6 +88,7 @@ public:
     bool process(uint32_t count)
     {
         bool rslt = true;
+        uint32_t original_count = count;
         while (count && rslt)
         {
             uint32_t size = count >= mParallel ? mParallel : count;
@@ -113,7 +116,7 @@ public:
             count -= size;
         }
 
-        std::cout << "finished " << count << " requests, stopping" << std::endl;
+        std::cout << "finished " << original_count << " requests, stopping" << std::endl;
 
         mStopped.store(true, std::memory_order_release);
         for (uint32_t i = 0; i < mParallel; i++)
@@ -149,7 +152,7 @@ private:
         char *pos = mRequestBuffer + sizeof(Header);
         for (Header i = 0; i < size; i++)
         {
-            int8_t len = rand() % (request_max_size - request_min_size + 1) + request_min_size;
+            int8_t len = mRandom.rand() % (request_max_size - request_min_size + 1) + request_min_size;
             mGenerators[i]->mRequestLength = len;
             mGenerators[i]->mRequestBuffer = pos;
             pos += len + 1;
